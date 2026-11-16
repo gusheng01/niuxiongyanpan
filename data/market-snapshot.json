@@ -1,8 +1,58 @@
 {
-  "date": "等待首次运行",
+  "date": "2026-11-16",
+  "updatedAt": "2026-11-16T12:28:58.662+08:00",
   "source": "auto",
-  "marketScore": 42,
-  "positionRange": [40, 60],
+  "marketScore": 51,
+  "positionRange": [
+    40,
+    60
+  ],
   "stopLoss": 3600,
-  "takeProfitScore": 70
+  "takeProfitScore": 70,
+  "fourDim": {
+    "valuation": 55,
+    "capital": 45,
+    "sentiment": 70,
+    "technical": 30
+  },
+  "indices": {
+    "sh000001": {
+      "name": "上证指数",
+      "price": 3620,
+      "changePct": -0.39,
+      "time": "20261116120500"
+    },
+    "sh000300": {
+      "name": "沪深300",
+      "price": 3993.76,
+      "changePct": -0.56,
+      "time": "20261116120500"
+    },
+    "sh000905": {
+      "name": "中证500",
+      "price": 6385.8,
+      "changePct": -1.23,
+      "time": "20261116120500"
+    },
+    "sz399006": {
+      "name": "创业板指",
+      "price": 2369.33,
+      "changePct": -2.34,
+      "time": "20261116120521"
+    },
+    "sh000688": {
+      "name": "科创50",
+      "price": 1242.47,
+      "changePct": -2.91,
+      "time": "20261116120500"
+    }
+  },
+  "signals": {
+    "turnover": "4217.57万亿",
+    "brokenNet": null,
+    "marginBalance": "0.00万亿",
+    "marginDate": "2026-11-13",
+    "hs300PeMedian": null,
+    "scoreTake": 51
+  }
 }
