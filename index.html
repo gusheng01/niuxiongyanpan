@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>A股牛熊研判工作台</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<!-- 替换为国内极速 CDN，解决图表加载失败的问题 -->
+<script src="https://cdn.staticfile.net/echarts/5.5.0/echarts.min.js"></script>
 <style>
 html{scroll-behavior:smooth}
 body{background:#0b0f19;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
@@ -273,7 +274,6 @@ body{background:#0b0f19;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 <!-- TAB 6 智能推荐 -->
 <section id="tab-recommend" class="tab-content hidden">
   <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-    <!-- 股票推荐 -->
     <div class="card p-4">
       <div class="flex items-center justify-between mb-3">
         <div class="text-sm font-semibold text-white">股票推荐</div>
@@ -291,7 +291,6 @@ body{background:#0b0f19;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
       <div id="stock-recommend-list" class="space-y-2 max-h-[560px] overflow-y-auto scrollbar-thin"></div>
     </div>
 
-    <!-- 基金推荐 -->
     <div class="card p-4">
       <div class="flex items-center justify-between mb-3">
         <div class="text-sm font-semibold text-white">基金推荐</div>
@@ -303,7 +302,7 @@ body{background:#0b0f19;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
         <div>✓ 最大回撤前 50%</div><div>✓ 波动率前 50%</div>
         <div>✓ 夏普前 50%</div><div>✓ 经理从业 &gt; 3 年</div>
       </div>
-      <div class="text-[9px] text-yellow-400/70 mb-2 leading-relaxed bg-yellow-500/5 border border-yellow-500/20 rounded p-2">⚠ 规模/排名/回撤/夏普/经理年限为内置静态标注值；价格位置与180日均线为实时计算。偏低位置：近250日区间分位&lt;40%；稳定高于180日线：最近5日收盘均&gt;MA180；经理从业要求 &gt;3 年。</div>
+      <div class="text-[9px] text-yellow-400/70 mb-2 leading-relaxed bg-yellow-500/5 border border-yellow-500/20 rounded p-2">⚠ 规模/排名/回撤/夏普/经理年限为内置静态标注值；价格位置与180日均线为实时计算。</div>
       <div id="fund-recommend-list" class="space-y-2 max-h-[560px] overflow-y-auto scrollbar-thin"></div>
     </div>
   </div>
@@ -425,7 +424,7 @@ body{background:#0b0f19;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 </main>
 
 <script>
-// ==================== Tab 切换 ====================
+// ==================== Tab 切换与图表重绘 ====================
 try {
   var tabBtns = document.querySelectorAll('.tab-btn');
   var tabContents = document.querySelectorAll('.tab-content');
@@ -436,7 +435,11 @@ try {
       tabContents.forEach(function(c){ c.classList.add('hidden'); });
       var target = document.getElementById('tab-' + btn.dataset.tab);
       if (target) target.classList.remove('hidden');
-      setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 60);
+      // 关键修复：切换Tab后，强制触发一次图表调整大小，防止隐藏时宽度为0
+      setTimeout(function(){ 
+        window.dispatchEvent(new Event('resize')); 
+        Object.values(chartInstances).forEach(function(c){ if(c) c.resize(); });
+      }, 100);
     });
   });
 } catch(e){ console.error('Tab init failed', e); }
@@ -485,7 +488,7 @@ function classifyInstrument(code){
 }
 function levelOf(s){ return s >= 60 ? 'green' : s >= 40 ? 'yellow' : 'red'; }
 function levelMeta(l){ return { green:{dot:'dot-green',text:'text-green-400'}, yellow:{dot:'dot-yellow',text:'text-yellow-400'}, red:{dot:'dot-red',text:'text-red-400'} }[l]; }
-function avg(arr){ return arr.reduce(function(a,b){return a+b;},0)/arr.length; }
+function avg(arr){ return arr.reduce((a,b){return a+b;},0)/arr.length; }
 
 // ==================== 实时评分计算 ====================
 async function computeLiveScore(){
@@ -635,7 +638,36 @@ function updateSignalUI(sig){
   }
 }
 
-// ==================== 实时指数拉取 ====================
+// ==================== 从 GitHub 读取数据文件 ====================
+async function loadSnapshot() {
+  try {
+    const res = await fetch('./data/market-snapshot.json?t=' + Date.now());
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.source !== 'auto') return false;
+
+    MARKET_SNAPSHOT.score = data.marketScore;
+    MARKET_FUND_ENV.marketScore = data.marketScore;
+    if (data.positionRange) MARKET_SNAPSHOT.positionRange = data.positionRange;
+    if (data.stopLoss) MARKET_SNAPSHOT.stopLoss = data.stopLoss;
+    if (data.takeProfitScore) MARKET_SNAPSHOT.takeProfitScore = data.takeProfitScore;
+
+    if (data.indices) SNAPSHOT_INDICES = data.indices;
+    if (data.signals) updateSignalUI(data.signals);
+    if (data.fourDim) {
+      const sub = document.getElementById('ov-sub-scores');
+      if (sub) sub.textContent = `估值 ${data.fourDim.valuation} · 资金 ${data.fourDim.capital} · 情绪 ${data.fourDim.sentiment} · 技术 ${data.fourDim.technical}`;
+    }
+
+    updateSnapshotBadge(data.date, data.updatedAt, 'auto');
+    updateSnapshotUI();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ==================== 实时指数拉取（备选） ====================
 async function fetchLiveIndices(){
   var codes = { sh000001:'上证指数', sh000300:'沪深300', sh000905:'中证500', sz399006:'创业板指', sh000688:'科创50' };
   var indices = {}, ok = 0;
@@ -736,14 +768,22 @@ function updateSnapshotUI(){
 // ==================== ECharts ====================
 var chartInstances = {};
 function initChart(id, option){
-  var el = document.getElementById(id); if (!el || typeof echarts === 'undefined') return;
-  if (chartInstances[id]) chartInstances[id].dispose();
-  var c = echarts.init(el, null, { renderer: 'canvas' });
-  c.setOption(option); chartInstances[id] = c;
+  var el = document.getElementById(id); 
+  if (!el || typeof echarts === 'undefined') return;
+  // 防止隐藏的Tab导致图表宽高为0
+  if (el.clientWidth === 0 || el.clientHeight === 0) {
+    setTimeout(function() { initChart(id, option); }, 200);
+    return;
+  }
+  try {
+    if (chartInstances[id]) chartInstances[id].dispose();
+    var c = echarts.init(el, null, { renderer: 'canvas' });
+    c.setOption(option); chartInstances[id] = c;
+  } catch(e) { console.error('Chart init error', id, e); }
 }
 var axisStyle = { axisLine:{lineStyle:{color:'#334155'}}, axisLabel:{color:'#64748b',fontSize:10}, splitLine:{lineStyle:{color:'#1e293b'}} };
 
-try {
+function initAllCharts() {
   initChart('chart-radar-overview', { radar:{ indicator:[{name:'估值',max:100},{name:'资金',max:100},{name:'情绪',max:100},{name:'技术',max:100}], center:['50%','52%'], radius:'62%', axisName:{color:'#94a3b8',fontSize:10}, splitArea:{areaStyle:{color:['#0f172a','#111827']}}, splitLine:{lineStyle:{color:'#1e293b'}}, axisLine:{lineStyle:{color:'#334155'}} }, series:[{ type:'radar', data:[{value:[55,35,40,35]}], lineStyle:{color:'#3b82f6',width:2}, itemStyle:{color:'#3b82f6'}, areaStyle:{color:'rgba(59,130,246,0.18)'} }] });
   initChart('chart-bar-pe', { grid:{left:50,right:15,top:15,bottom:25}, xAxis:{type:'category',data:['沪深300','中证500','创业板','科创50'],...axisStyle}, yAxis:{type:'value',max:100,...axisStyle}, series:[{type:'bar',data:[{value:55,itemStyle:{color:'#eab308'}},{value:47,itemStyle:{color:'#eab308'}},{value:10,itemStyle:{color:'#22c55e'}},{value:76,itemStyle:{color:'#ef4444'}}],barWidth:'45%'}] });
   initChart('chart-line-margin', { grid:{left:50,right:15,top:20,bottom:25}, xAxis:{type:'category',data:['6月','7月','8月','9月','10月'],...axisStyle}, yAxis:{type:'value',min:2.2,max:3.1,...axisStyle}, series:[{type:'line',data:[3.03,2.92,2.78,2.60,2.43],smooth:true,lineStyle:{color:'#ef4444',width:2},areaStyle:{color:'rgba(239,68,68,0.08)'}}] });
@@ -751,7 +791,8 @@ try {
   initChart('chart-gauge', { series:[{ type:'gauge', min:0, max:100, center:['50%','55%'], radius:'80%', axisLine:{lineStyle:{width:14,color:[[0.3,'#22c55e'],[0.55,'#eab308'],[0.7,'#f97316'],[0.85,'#ef4444'],[1,'#dc2626']]}}, pointer:{length:'55%',width:4,itemStyle:{color:'#f1f5f9'}}, detail:{formatter:'{value}',color:'#eab308',fontSize:28,fontWeight:'bold',offsetCenter:[0,'55%']}, data:[{value:42}] }] });
   initChart('chart-sector-radar', { radar:{ indicator:[{name:'成交占比',max:100},{name:'换手率',max:100},{name:'融资余额',max:100},{name:'公募持仓',max:100},{name:'估值分位',max:100}], center:['50%','52%'], radius:'62%', axisName:{color:'#94a3b8',fontSize:9}, splitArea:{areaStyle:{color:['#0f172a','#111827']}}, splitLine:{lineStyle:{color:'#1e293b'}}, axisLine:{lineStyle:{color:'#334155'}} }, series:[{ type:'radar', data:[{value:[89,2,25,92,76]}], lineStyle:{color:'#f97316',width:2}, itemStyle:{color:'#f97316'}, areaStyle:{color:'rgba(249,115,22,0.15)'} }] });
   initChart('chart-rotation', { grid:{left:65,right:20,top:15,bottom:20}, xAxis:{type:'value',...axisStyle}, yAxis:{type:'category',data:['煤炭','石油石化','银行','交运','食品饮料','家电','电子','通信'],...axisStyle}, series:[{type:'bar',data:[1.2,0.8,0.6,0.4,0.3,-0.2,-3.5,-4.1],itemStyle:{color:function(p){return p.value>=0?'#22c55e':'#ef4444';}},barWidth:'50%'}] });
-} catch(e){ console.error('Chart init failed', e); }
+}
+window.addEventListener('load', initAllCharts);
 window.addEventListener('resize', function(){ Object.values(chartInstances).forEach(function(c){ if(c) c.resize(); }); });
 
 // ==================== 查询历史 ====================
@@ -1276,7 +1317,7 @@ async function renderInstrumentAnalysis(code, type, data){
   }
 }
 
-// ==================== 智能推荐 · 股票（满足≥6项） ====================
+// ==================== 智能推荐 · 股票 ====================
 var STOCK_CONDITIONS = [
   { key:'board', label:'主板' },
   { key:'chg', label:'涨幅2-6%' },
@@ -1550,7 +1591,7 @@ function renderStockRecommend(results){
   }).join('');
 }
 
-// ==================== 智能推荐 · 基金（低位企稳 · 经理从业>3年） ====================
+// ==================== 智能推荐 · 基金 ====================
 var FUND_POOL = [
   { code:'510300', name:'沪深300ETF', theme:'宽基', size:3800, rank3y:'前30%', maxDD:'前40%', vol:'前50%', sharpe:'前45%', managerYears:8 },
   { code:'510500', name:'中证500ETF', theme:'宽基', size:900, rank3y:'前45%', maxDD:'前50%', vol:'前45%', sharpe:'前50%', managerYears:7 },
@@ -1570,7 +1611,6 @@ async function screenFunds(){
 
   for (var i = 0; i < FUND_POOL.length; i++){
     var f = FUND_POOL[i];
-    // 经理从业年限 > 3 年的硬性过滤
     if (!f.managerYears || f.managerYears <= 3) continue;
     try {
       var end = new Date().toISOString().slice(0, 10);
@@ -1759,12 +1799,16 @@ screenFunds().catch(function(e){ console.warn('基金推荐失败', e); });
 var refreshBtn = document.getElementById('snapshot-refresh-btn');
 if (refreshBtn) refreshBtn.addEventListener('click', async function(){
   refreshBtn.textContent = '刷新中…'; refreshBtn.disabled = true;
-  var ok = await fetchLiveIndices();
+  var ok = await loadSnapshot();
+  if (!ok) ok = await fetchLiveIndices();
   refreshBtn.textContent = ok ? '已更新' : '刷新失败';
   setTimeout(function(){ refreshBtn.textContent = '刷新'; refreshBtn.disabled = false; }, 1500);
 });
 
-fetchLiveIndices().catch(function(e){});
+// 先尝试读取 GitHub 数据，失败则走实时接口
+loadSnapshot().then(function(ok){
+  if (!ok) fetchLiveIndices().catch(function(e){});
+});
 </script>
 </body>
 </html>
