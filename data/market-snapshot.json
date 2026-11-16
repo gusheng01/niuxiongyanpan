@@ -1,0 +1,8 @@
+{
+  "date": "等待首次运行",
+  "source": "auto",
+  "marketScore": 42,
+  "positionRange": [40, 60],
+  "stopLoss": 3600,
+  "takeProfitScore": 70
+}
