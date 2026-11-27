@@ -1,11 +1,11 @@
 {
-  "date": "2026-11-26",
-  "updatedAt": "2026-11-26T16:43:41.201+08:00",
+  "date": "2026-11-27",
+  "updatedAt": "2026-11-27T16:44:01.694+08:00",
   "source": "auto",
-  "marketScore": 51,
+  "marketScore": 55,
   "positionRange": [
-    40,
-    60
+    30,
+    50
   ],
   "stopLoss": 3600,
   "takeProfitScore": 70,
@@ -13,46 +13,46 @@
     "valuation": 55,
     "capital": 45,
     "sentiment": 70,
-    "technical": 30
+    "technical": 50
   },
   "indices": {
     "sh000001": {
       "name": "上证指数",
-      "price": 3476.88,
-      "changePct": 0.01,
-      "time": "20261126161427"
+      "price": 3606.49,
+      "changePct": 3.73,
+      "time": "20261127161427"
     },
     "sh000300": {
       "name": "沪深300",
-      "price": 3900.55,
-      "changePct": 0.06,
-      "time": "20261126161409"
+      "price": 4063.06,
+      "changePct": 4.17,
+      "time": "20261127161409"
     },
     "sh000905": {
       "name": "中证500",
-      "price": 5863.34,
-      "changePct": -0.46,
-      "time": "20261126161409"
+      "price": 6313.63,
+      "changePct": 7.68,
+      "time": "20261127161409"
     },
     "sz399006": {
       "name": "创业板指",
-      "price": 2189.82,
-      "changePct": 0.29,
-      "time": "20261126161430"
+      "price": 2443.96,
+      "changePct": 11.61,
+      "time": "20261127161427"
     },
     "sh000688": {
       "name": "科创50",
-      "price": 1169.99,
-      "changePct": -1.36,
-      "time": "20261126161409"
+      "price": 1346.25,
+      "changePct": 15.07,
+      "time": "20261127161409"
     }
   },
   "signals": {
-    "turnover": "6133.33万亿",
+    "turnover": "9297.77万亿",
     "brokenNet": null,
     "marginBalance": "0.00万亿",
-    "marginDate": "2026-11-25",
+    "marginDate": "2026-11-26",
     "hs300PeMedian": null,
-    "scoreTake": 51
+    "scoreTake": 55
   }
 }
